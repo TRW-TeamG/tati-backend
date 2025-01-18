@@ -1,0 +1,13 @@
+node_modules
+dist
+stack
+.git
+.github
+.editorconfig
+.env.example
+.eslintrc.js
+.gitignore
+.prettierignore
+.prettierrc
+Dockerfile
+*.md
