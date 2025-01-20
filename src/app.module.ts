@@ -20,12 +20,25 @@ import logger from './config/logger'
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'sqlite',
-        database: './db/dev.sqlite',
-        synchronize: true,
-        autoLoadEntities: true,
-      }),
+      useFactory: (config: ConfigService) => {
+        const dbConfig = config.get('database')
+        const isPostgres = dbConfig.type === 'postgres'
+
+        return {
+          type: dbConfig.type,
+          ...(isPostgres
+            ? {
+                type: 'postgres',
+                url: dbConfig.url,
+              }
+            : {
+                type: 'sqlite',
+                database: dbConfig.url,
+              }),
+          synchronize: true,
+          autoLoadEntities: true,
+        }
+      },
     }),
     LoggerModule.forRootAsync({
       imports: [ConfigModule],
