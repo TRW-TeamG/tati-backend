@@ -3,6 +3,17 @@ import { UserAgent } from 'user-agents'
 
 import { Injectable } from '@nestjs/common'
 
+import {
+  GasPrice,
+  PaginatedResponse,
+  TokenInfo,
+  TokenUsdPrice,
+  TrendingToken,
+  WalletActivity,
+  WalletHolding,
+  WalletInfo,
+} from './types'
+
 @Injectable()
 export class GmgnService {
   private readonly BASE_DEFI_URL = 'https://gmgn.ai/defi/quotation/v1'
@@ -53,7 +64,7 @@ export class GmgnService {
    * @param contractAddress - The address of the token
    * @returns The info of the token
    */
-  async getTokenInfo(contractAddress: string) {
+  async getTokenInfo(contractAddress: string): Promise<TokenInfo> {
     if (!contractAddress) {
       throw new Error('Contract address is required')
     }
@@ -67,14 +78,16 @@ export class GmgnService {
    * @param timeframe - The timeframe of the trending tokens
    * @returns The trending tokens
    */
-  async getTrendingTokens(timeframe: '1m' | '5m' | '1h' | '6h' | '24h' = '1h') {
+  async getTrendingTokens(
+    timeframe: '1m' | '5m' | '1h' | '6h' | '24h' = '1h',
+  ): Promise<PaginatedResponse<TrendingToken>> {
     const url =
       timeframe === '1m'
         ? `/rank/sol/swaps/${timeframe}?orderby=swaps&direction=desc&limit=20`
         : `/rank/sol/swaps/${timeframe}?orderby=swaps&direction=desc&limit=20`
 
     const response = await this.defiClient.get(url)
-    return response.data.data
+    return response.data
   }
 
   /**
@@ -82,7 +95,7 @@ export class GmgnService {
    * @see examples/gasPrice.json
    * @returns The gas fee
    */
-  async getGasFee() {
+  async getGasFee(): Promise<GasPrice> {
     const response = await this.defiClient.get('/chains/sol/gas_price')
     return response.data.data
   }
@@ -93,7 +106,7 @@ export class GmgnService {
    * @param contractAddress - The address of the token
    * @returns The USD price of the token
    */
-  async getTokenUsdPrice(contractAddress: string) {
+  async getTokenUsdPrice(contractAddress: string): Promise<TokenUsdPrice> {
     if (!contractAddress) {
       throw new Error('Contract address is required')
     }
@@ -108,7 +121,7 @@ export class GmgnService {
    * @param period - The period of the info
    * @returns The info of the wallet
    */
-  async getWalletInfo(walletAddress: string, period: '7d' | '30d' = '7d') {
+  async getWalletInfo(walletAddress: string, period: '7d' | '30d' = '7d'): Promise<WalletInfo> {
     if (!walletAddress) {
       throw new Error('Wallet address is required')
     }
@@ -122,14 +135,14 @@ export class GmgnService {
    * @param walletAddress - The address of the wallet
    * @returns The holdings of the wallet
    */
-  async getWalletHoldings(walletAddress: string) {
+  async getWalletHoldings(walletAddress: string): Promise<PaginatedResponse<WalletHolding>> {
     if (!walletAddress) {
       throw new Error('Wallet address is required')
     }
     const response = await this.apiClient.get(
       `/v1/wallet_holdings/sol/wallet_holdings/${walletAddress}?limit=50&orderby=last_active_timestamp&direction=desc`,
     )
-    return response.data.data
+    return response.data
   }
 
   /**
@@ -138,13 +151,13 @@ export class GmgnService {
    * @param walletAddress - The address of the wallet
    * @returns The activity of the wallet
    */
-  async getWalletActivity(walletAddress: string) {
+  async getWalletActivity(walletAddress: string): Promise<PaginatedResponse<WalletActivity>> {
     if (!walletAddress) {
       throw new Error('Wallet address is required')
     }
     const response = await this.apiClient.get(
       `/v1/wallet_activity/sol?wallet=${walletAddress}&type=buy&type=sell&limit=50`,
     )
-    return response.data.data
+    return response.data
   }
 }
