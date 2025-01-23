@@ -1,12 +1,14 @@
 import axios, { AxiosInstance } from 'axios'
 import { UserAgent } from 'user-agents'
 
-import { HttpException, Injectable } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 
 @Injectable()
 export class GmgnService {
-  private readonly BASE_URL = 'https://gmgn.ai/defi/quotation'
-  private client: AxiosInstance
+  private readonly BASE_DEFI_URL = 'https://gmgn.ai/defi/quotation/v1'
+  private readonly BASE_API_URL = 'https://gmgn.ai/api/v1'
+  private defiClient: AxiosInstance
+  private apiClient: AxiosInstance
 
   constructor() {
     this.initializeClient()
@@ -18,8 +20,21 @@ export class GmgnService {
       platform: 'Win32',
     }).toString()
 
-    this.client = axios.create({
-      baseURL: this.BASE_URL,
+    this.defiClient = axios.create({
+      baseURL: this.BASE_DEFI_URL,
+      headers: {
+        Host: 'gmgn.ai',
+        Accept: 'application/json, text/plain, */*',
+        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+        DNT: '1',
+        Priority: 'u=1, i',
+        Referer: 'https://gmgn.ai/?chain=sol',
+        'User-Agent': userAgent,
+      },
+    })
+
+    this.apiClient = axios.create({
+      baseURL: this.BASE_API_URL,
       headers: {
         Host: 'gmgn.ai',
         Accept: 'application/json, text/plain, */*',
@@ -32,91 +47,104 @@ export class GmgnService {
     })
   }
 
+  /**
+   * Get the info of a token
+   * @see examples/tokenInfo.json
+   * @param contractAddress - The address of the token
+   * @returns The info of the token
+   */
   async getTokenInfo(contractAddress: string) {
     if (!contractAddress) {
-      throw new HttpException('Contract address is required', 400)
+      throw new Error('Contract address is required')
     }
-    const response = await this.client.get(`/v1/tokens/sol/${contractAddress}`)
+    const response = await this.defiClient.get(`/tokens/sol/${contractAddress}`)
     return response.data
   }
 
-  async getNewPairs(limit: number = 50) {
-    if (limit > 50) {
-      throw new HttpException('Cannot fetch more than 50 pairs', 400)
-    }
-    const response = await this.client.get(
-      `/v1/pairs/sol/new_pairs?limit=${limit}&orderby=open_timestamp&direction=desc&filters[]=not_honeypot`,
-    )
-    return response.data.data
-  }
-
-  async getTrendingWallets(timeframe: '1d' | '7d' | '30d' = '7d', walletTag: string = 'smart_degen') {
-    const response = await this.client.get(
-      `/v1/rank/sol/wallets/${timeframe}?tag=${walletTag}&orderby=pnl_${timeframe}&direction=desc`,
-    )
-    return response.data.data
-  }
-
+  /**
+   * Get the trending tokens
+   * @see examples/trendingTokens.json
+   * @param timeframe - The timeframe of the trending tokens
+   * @returns The trending tokens
+   */
   async getTrendingTokens(timeframe: '1m' | '5m' | '1h' | '6h' | '24h' = '1h') {
     const url =
       timeframe === '1m'
-        ? `/v1/rank/sol/swaps/${timeframe}?orderby=swaps&direction=desc&limit=20`
-        : `/v1/rank/sol/swaps/${timeframe}?orderby=swaps&direction=desc`
+        ? `/rank/sol/swaps/${timeframe}?orderby=swaps&direction=desc&limit=20`
+        : `/rank/sol/swaps/${timeframe}?orderby=swaps&direction=desc&limit=20`
 
-    const response = await this.client.get(url)
+    const response = await this.defiClient.get(url)
     return response.data.data
   }
 
-  async getTokensByCompletion(limit: number = 50) {
-    if (limit > 50) {
-      throw new HttpException('Limit cannot be above 50', 400)
-    }
-    const response = await this.client.get(`/v1/rank/sol/pump?limit=${limit}&orderby=progress&direction=desc&pump=true`)
-    return response.data.data
-  }
-
-  async findSnipedTokens(size: number = 10) {
-    if (size > 39) {
-      throw new HttpException('Size cannot be more than 39', 400)
-    }
-    const response = await this.client.get(`/v1/signals/sol/snipe_new?size=${size}&is_show_alert=false&featured=false`)
-    return response.data.data
-  }
-
+  /**
+   * Get the gas fee
+   * @see examples/gasPrice.json
+   * @returns The gas fee
+   */
   async getGasFee() {
-    const response = await this.client.get('/v1/chains/sol/gas_price')
+    const response = await this.defiClient.get('/chains/sol/gas_price')
     return response.data.data
   }
 
+  /**
+   * Get the USD price of a token
+   * @see examples/tokenUsdPrice.json
+   * @param contractAddress - The address of the token
+   * @returns The USD price of the token
+   */
   async getTokenUsdPrice(contractAddress: string) {
     if (!contractAddress) {
-      throw new HttpException('Contract address is required', 400)
+      throw new Error('Contract address is required')
     }
-    const response = await this.client.get(`/v1/sol/tokens/realtime_token_price?address=${contractAddress}`)
+    const response = await this.defiClient.get(`/sol/tokens/realtime_token_price?address=${contractAddress}`)
     return response.data.data
   }
 
-  async getTopBuyers(contractAddress: string) {
-    if (!contractAddress) {
-      throw new HttpException('Contract address is required', 400)
-    }
-    const response = await this.client.get(`/v1/tokens/top_buyers/sol/${contractAddress}`)
-    return response.data.data
-  }
-
-  async getSecurityInfo(contractAddress: string) {
-    if (!contractAddress) {
-      throw new HttpException('Contract address is required', 400)
-    }
-    const response = await this.client.get(`/v1/tokens/security/sol/${contractAddress}`)
-    return response.data.data
-  }
-
+  /**
+   * Get the info of a wallet
+   * @see examples/walletInfo.json
+   * @param walletAddress - The address of the wallet
+   * @param period - The period of the info
+   * @returns The info of the wallet
+   */
   async getWalletInfo(walletAddress: string, period: '7d' | '30d' = '7d') {
     if (!walletAddress) {
-      throw new HttpException('Wallet address is required', 400)
+      throw new Error('Wallet address is required')
     }
-    const response = await this.client.get(`/v1/smartmoney/sol/walletNew/${walletAddress}?period=${period}`)
+    const response = await this.defiClient.get(`/v1/smartmoney/sol/walletNew/${walletAddress}?period=${period}`)
+    return response.data.data
+  }
+
+  /**
+   * Get the holdings of a wallet
+   * @see examples/walletHoldings.json
+   * @param walletAddress - The address of the wallet
+   * @returns The holdings of the wallet
+   */
+  async getWalletHoldings(walletAddress: string) {
+    if (!walletAddress) {
+      throw new Error('Wallet address is required')
+    }
+    const response = await this.apiClient.get(
+      `/v1/wallet_holdings/sol/wallet_holdings/${walletAddress}?limit=50&orderby=last_active_timestamp&direction=desc`,
+    )
+    return response.data.data
+  }
+
+  /**
+   * Get the activity of a wallet
+   * @see examples/walletActivity.json
+   * @param walletAddress - The address of the wallet
+   * @returns The activity of the wallet
+   */
+  async getWalletActivity(walletAddress: string) {
+    if (!walletAddress) {
+      throw new Error('Wallet address is required')
+    }
+    const response = await this.apiClient.get(
+      `/v1/wallet_activity/sol?wallet=${walletAddress}&type=buy&type=sell&limit=50`,
+    )
     return response.data.data
   }
 }
