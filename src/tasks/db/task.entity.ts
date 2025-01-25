@@ -49,4 +49,10 @@ export class Task {
 
   @Column({ type: 'timestamp', nullable: true })
   completedAt: Date
+
+  @Column({ default: false })
+  rewardClaimed: boolean
+
+  @Column({ type: 'timestamp', nullable: true })
+  rewardClaimedAt: Date
 }
