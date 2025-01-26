@@ -10,6 +10,9 @@ import { ChatModule } from '@/chat/chat.module'
 import { AppService } from './app.service'
 import config from './config'
 import logger from './config/logger'
+import { GenAIModule } from './genai/genai.module'
+import { GmgnModule } from './gmgn/gmgn.module'
+import { TaskModule } from './tasks/task.module'
 
 @Module({
   imports: [
@@ -47,6 +50,9 @@ import logger from './config/logger'
     }),
     AuthModule,
     ChatModule,
+    TaskModule,
+    GmgnModule,
+    GenAIModule,
   ],
   providers: [AppService],
 })

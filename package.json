@@ -23,6 +23,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "@nestjs/common": "^10.3.3",
     "@nestjs/config": "^3.2.0",
     "@nestjs/core": "^10.3.3",
@@ -32,6 +33,7 @@
     "@nestjs/platform-fastify": "^10.3.3",
     "@nestjs/typeorm": "^10.0.2",
     "@solana/web3.js": "^2.0.0",
+    "axios": "^1.7.9",
     "bs58": "^6.0.0",
     "date-fns": "^3.6.0",
     "fastify": "^5.2.1",
@@ -44,7 +46,8 @@
     "pino-pretty": "^10.3.1",
     "reflect-metadata": "^0.2.1",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.20"
+    "typeorm": "^0.3.20",
+    "user-agents": "^1.1.428"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
