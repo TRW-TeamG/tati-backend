@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm'
-import { In, IsNull, Not } from 'typeorm'
+import { In } from 'typeorm'
 
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'

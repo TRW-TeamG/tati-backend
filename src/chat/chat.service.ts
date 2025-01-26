@@ -1,13 +1,17 @@
 import { Injectable } from '@nestjs/common'
 
 import { User } from '@/auth/db'
+import { GenAIService } from '@/genai/genai.service'
 import { TaskService } from '@/tasks/task.service'
 
 import { ChatMessageDto, ChatMessageType, ChatResponse } from './types'
 
 @Injectable()
 export class ChatService {
-  constructor(private readonly taskService: TaskService) {}
+  constructor(
+    private readonly taskService: TaskService,
+    private readonly genAIService: GenAIService,
+  ) {}
 
   private readonly commands = {
     task: ['task', 'quest', 'mission', 'assignment'],
@@ -67,6 +71,12 @@ export class ChatService {
     actions: this.sampleActions,
   }
 
+  private readonly defaultResponse: ChatResponse = {
+    message:
+      'Hmm, let me gaze deeper into the crypto cosmos to answer that question. Perhaps try asking about tasks, trading, or verification?',
+    actions: this.sampleActions,
+  }
+
   // every response here, should have a message and sample actions
   private readonly responses: Record<string, ChatResponse[]> = {
     'crypto future': [
@@ -96,12 +106,25 @@ export class ChatService {
   }
 
   async processMessage(dto: ChatMessageDto, user: User): Promise<ChatResponse> {
-    const lowercaseMessage = dto.message.toLowerCase()
+    // For regular messages, use Gemini to generate responses
+    if (dto.type === ChatMessageType.MESSAGE) {
+      try {
+        const response = await this.genAIService.generateText(dto.message)
+        const randomGetTaskCta = this.cta.getTask[Math.floor(Math.random() * this.cta.getTask.length)]
+
+        return {
+          message: response,
+          actions: [{ type: ChatMessageType.ACTION, message: randomGetTaskCta }, ...this.sampleActions],
+        }
+      } catch (error) {
+        return this.defaultResponse
+      }
+    }
 
     // Check is incoming dto is an action
     if (dto.type === ChatMessageType.ACTION) {
       // Check if the action is to get a task
-      if (this.commands.task.some((cmd) => lowercaseMessage.includes(cmd))) {
+      if (this.commands.task.some((cmd) => dto.message.toLowerCase().includes(cmd))) {
         try {
           // check if user has ongoing tasks
           const tasks = await this.taskService.getIncompletedTasks(user)
@@ -130,7 +153,7 @@ export class ChatService {
       }
 
       // Check if the action is to verify a task
-      if (this.commands.verify.some((cmd) => lowercaseMessage.includes(cmd))) {
+      if (this.commands.verify.some((cmd) => dto.message.toLowerCase().includes(cmd))) {
         try {
           const result = await this.taskService.verifyTasksCompletion(user)
           if (result) {
@@ -156,7 +179,7 @@ export class ChatService {
       }
 
       // Check if the action is to claim a reward
-      if (this.commands.claim.some((cmd) => lowercaseMessage.includes(cmd))) {
+      if (this.commands.claim.some((cmd) => dto.message.toLowerCase().includes(cmd))) {
         try {
           const reward = await this.taskService.claimReward(user)
           // if success, return the response with sample actions
@@ -174,8 +197,8 @@ export class ChatService {
       }
     }
 
-    // Find matching category based on keywords
-    const category = Object.keys(this.responses).find((key) => lowercaseMessage.includes(key))
+    // Default fallback to predefined responses
+    const category = Object.keys(this.responses).find((key) => dto.message.toLowerCase().includes(key))
 
     if (category) {
       const responses = this.responses[category]
@@ -189,10 +212,6 @@ export class ChatService {
     }
 
     // Default response
-    return {
-      message:
-        'Hmm, let me gaze deeper into the crypto cosmos to answer that question. Perhaps try asking about tasks, trading, or verification?',
-      actions: this.sampleActions,
-    }
+    return this.defaultResponse
   }
 }
