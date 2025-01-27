@@ -13,35 +13,48 @@ export class ChatService {
     private readonly genAIService: GenAIService,
   ) {}
 
+  // TODO: move to llm model
   private readonly commands = {
-    task: ['task', 'quest', 'mission', 'assignment'],
-    verify: ['verify', 'check', 'complete', 'done'],
-    claim: ['claim', 'reward', 'collect'],
+    getTask: ['task', 'quest', 'mission', 'assignment', 'challenge', 'test'],
+    verifyTask: ['verify', 'check', 'complete', 'done', 'progress', 'achieve', 'accomplishment'],
+    claimReward: ['claim', 'reward', 'collect', 'earning'],
   }
 
-  private readonly actions = {
-    getTask: ['get', 'get task', 'get quest', 'get assignment', 'get quest'],
-    verifyTask: ['verify', 'check', 'complete', 'done'],
-    claimReward: ['claim', 'reward', 'collect'],
-  }
-
+  // TODO: move to llm model
   private readonly cta = {
     getTask: [
-      'Would you like a task to test your trading skills?',
-      'Shall we start with a little task?',
-      'The crypto spirits are aligning... Let me find you a worthy quest.',
+      'Give me a task to test my skills',
+      'I want to start a task',
+      'I seek a challenge to prove my worth',
+      'I would like to undertake a trading quest',
+      'Ready for a challenge',
+      'I accept your test',
     ],
     verifyTask: [
-      'Let me check your progress in the crypto realm...',
-      'The crypto spirits are pleased with your actions. Your tasks have been completed! Would you like to claim your reward?',
-      'The crypto spirits acknowledge your progress, but no tasks are ready for verification yet.',
+      'Check my progress',
+      'How am I doing?',
+      'Verify my achievements',
+      'Review my progress',
+      'Check my accomplishments',
+      'What have I achieved?',
     ],
     claimReward: [
-      'The crypto spirits are pleased with your actions. Your tasks have been completed! Would you like to claim your reward?',
-      'The crypto spirits acknowledge your progress, but no tasks are ready for verification yet.',
+      'I want to collect my rewards',
+      'Give me my rewards',
+      'Time to claim my earnings',
+      'I would like my reward now',
+      'Let me get my earnings',
+      'Ready to receive my rewards',
     ],
   }
 
+  private getRandomCTA(category: 'getTask' | 'verifyTask' | 'claimReward'): string {
+    const messages = this.cta[category]
+    const randomIndex = Math.floor(Math.random() * messages.length)
+    return messages[randomIndex]
+  }
+
+  // TODO: move to llm model
   private readonly sampleActions = [
     {
       type: ChatMessageType.MESSAGE,
@@ -65,6 +78,7 @@ export class ChatService {
     },
   ]
 
+  // TODO: move to llm model
   private readonly welcomeMessage: ChatResponse = {
     message:
       '✨ Greetings, seeker of crypto wisdom! I am TaTi, your mystical guide through the blockchain realms. How may I illuminate your path today?',
@@ -110,11 +124,10 @@ export class ChatService {
     if (dto.type === ChatMessageType.MESSAGE) {
       try {
         const response = await this.genAIService.generateText(dto.message)
-        const randomGetTaskCta = this.cta.getTask[Math.floor(Math.random() * this.cta.getTask.length)]
 
         return {
           message: response,
-          actions: [{ type: ChatMessageType.ACTION, message: randomGetTaskCta }, ...this.sampleActions],
+          actions: [{ type: ChatMessageType.ACTION, message: this.getRandomCTA('getTask') }, ...this.sampleActions],
         }
       } catch (error) {
         return this.defaultResponse
@@ -124,7 +137,7 @@ export class ChatService {
     // Check is incoming dto is an action
     if (dto.type === ChatMessageType.ACTION) {
       // Check if the action is to get a task
-      if (this.commands.task.some((cmd) => dto.message.toLowerCase().includes(cmd))) {
+      if (this.commands.getTask.some((cmd) => dto.message.toLowerCase().includes(cmd))) {
         try {
           // check if user has ongoing tasks
           const tasks = await this.taskService.getIncompletedTasks(user)
@@ -132,28 +145,33 @@ export class ChatService {
             // if yes, return the response with current task and sample actions and one verification action
             return {
               message: `🔮 You are already working on a task... ${tasks[0].description}`,
-              actions: [{ type: ChatMessageType.ACTION, message: 'Verify my progress' }, ...this.sampleActions],
+              actions: [
+                { type: ChatMessageType.ACTION, message: this.getRandomCTA('verifyTask') },
+                ...this.sampleActions,
+              ],
             }
           }
           // if no, return the response with a random task and sample actions and one verification action
           const task = await this.taskService.getRandomTask(user)
           return {
             message: `🔮 I have foreseen your path... ${task.description}`,
-            actions: [{ type: ChatMessageType.ACTION, message: 'Verify my progress' }, ...this.sampleActions],
+            actions: [
+              { type: ChatMessageType.ACTION, message: this.getRandomCTA('verifyTask') },
+              ...this.sampleActions,
+            ],
           }
         } catch (error) {
           console.error(error)
           // if error, return the error message with sample actions and random getTask cta
-          const randomGetTaskCta = this.cta.getTask[Math.floor(Math.random() * this.cta.getTask.length)]
           return {
             message: error.message,
-            actions: [{ type: ChatMessageType.ACTION, message: randomGetTaskCta }, ...this.sampleActions],
+            actions: [{ type: ChatMessageType.ACTION, message: this.getRandomCTA('getTask') }, ...this.sampleActions],
           }
         }
       }
 
       // Check if the action is to verify a task
-      if (this.commands.verify.some((cmd) => dto.message.toLowerCase().includes(cmd))) {
+      if (this.commands.verifyTask.some((cmd) => dto.message.toLowerCase().includes(cmd))) {
         try {
           const result = await this.taskService.verifyTasksCompletion(user)
           if (result) {
@@ -161,25 +179,34 @@ export class ChatService {
             return {
               message:
                 'The crypto spirits are pleased with your actions. Your tasks have been completed! Would you like to claim your reward?',
-              actions: [{ type: ChatMessageType.ACTION, message: 'Claim my reward' }, ...this.sampleActions],
+              actions: [
+                { type: ChatMessageType.ACTION, message: this.getRandomCTA('claimReward') },
+                ...this.sampleActions,
+              ],
             }
           }
           // otherwise, return the response with sample actions and one verification action
           return {
             message: 'The crypto spirits acknowledge your progress, but no tasks are ready for verification yet.',
-            actions: [{ type: ChatMessageType.ACTION, message: 'Verify my progress' }, ...this.sampleActions],
+            actions: [
+              { type: ChatMessageType.ACTION, message: this.getRandomCTA('verifyTask') },
+              ...this.sampleActions,
+            ],
           }
         } catch (error) {
           // if error, return the error message with sample actions and one verification action
           return {
             message: error.message,
-            actions: [{ type: ChatMessageType.ACTION, message: 'Verify my progress' }, ...this.sampleActions],
+            actions: [
+              { type: ChatMessageType.ACTION, message: this.getRandomCTA('verifyTask') },
+              ...this.sampleActions,
+            ],
           }
         }
       }
 
       // Check if the action is to claim a reward
-      if (this.commands.claim.some((cmd) => dto.message.toLowerCase().includes(cmd))) {
+      if (this.commands.claimReward.some((cmd) => dto.message.toLowerCase().includes(cmd))) {
         try {
           const reward = await this.taskService.claimReward(user)
           // if success, return the response with sample actions
@@ -191,7 +218,10 @@ export class ChatService {
           // if error, return the error message with sample actions and one claim reward action
           return {
             message: error.message || 'The spirits find no rewards ready for claiming at this time.',
-            actions: [{ type: ChatMessageType.ACTION, message: 'Claim my reward' }, ...this.sampleActions],
+            actions: [
+              { type: ChatMessageType.ACTION, message: this.getRandomCTA('claimReward') },
+              ...this.sampleActions,
+            ],
           }
         }
       }
@@ -204,10 +234,9 @@ export class ChatService {
       const responses = this.responses[category]
       // return a random response from the category and add random getTask cta as first element
       const randomResponse = responses[Math.floor(Math.random() * responses.length)]
-      const randomGetTaskCta = this.cta.getTask[Math.floor(Math.random() * this.cta.getTask.length)]
       return {
         message: randomResponse.message,
-        actions: [{ type: ChatMessageType.ACTION, message: randomGetTaskCta }, ...randomResponse.actions],
+        actions: [{ type: ChatMessageType.ACTION, message: this.getRandomCTA('getTask') }, ...randomResponse.actions],
       }
     }
 
