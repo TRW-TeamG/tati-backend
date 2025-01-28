@@ -39,6 +39,7 @@ export class Task {
   @Column('json')
   requirements: {
     tokenAddress?: string
+    amount?: string
   }
 
   @ManyToOne(() => User, { eager: true })
@@ -55,4 +56,7 @@ export class Task {
 
   @Column({ type: 'timestamp', nullable: true })
   rewardClaimedAt: Date
+
+  @Column({ nullable: true, unique: true })
+  proof: string
 }

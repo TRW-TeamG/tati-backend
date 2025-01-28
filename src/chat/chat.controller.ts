@@ -12,8 +12,9 @@ export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Get('welcome')
-  getWelcomeMessage() {
-    return this.chatService.getWelcomeMessage()
+  @UseGuards(JwtAuthGuard)
+  getWelcomeMessage(@CurrentUser() user: User) {
+    return this.chatService.getWelcomeMessage(user)
   }
 
   @Post('messages')

@@ -115,7 +115,15 @@ export class ChatService {
     ],
   }
 
-  getWelcomeMessage(): ChatResponse {
+  async getWelcomeMessage(user: User): Promise<ChatResponse> {
+    // if user has ongoing tasks, return the response with current task and sample actions and one verification action
+    const tasks = await this.taskService.getIncompletedTasks(user)
+    if (tasks.length > 0) {
+      return {
+        message: `🔮 You are already working on a task... ${tasks[0].description}`,
+        actions: [{ type: ChatMessageType.ACTION, message: this.getRandomCTA('verifyTask') }, ...this.sampleActions],
+      }
+    }
     return this.welcomeMessage
   }
 
