@@ -34,4 +34,7 @@ export default () => ({
     temperature: parseFloat(process.env.GEMINI_TEMPERATURE || '1.3'),
     maxTokens: parseInt(process.env.GEMINI_MAX_TOKENS || '1000'),
   },
+  soltracker: {
+    apiKey: process.env.SOLTRACKER_API_KEY,
+  },
 })

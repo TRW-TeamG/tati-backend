@@ -5,7 +5,7 @@ import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 
 import { User } from '@/auth/db'
-import { GmgnService } from '@/gmgn/gmgn.service'
+import { SoltrackerService, TrendingToken } from '@/soltracker/soltracker.service'
 
 import { Task, TaskStatus, TaskType } from './db/task.entity'
 
@@ -22,7 +22,7 @@ export class TaskService {
   constructor(
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
-    private readonly gmgnService: GmgnService,
+    private readonly soltrackerService: SoltrackerService,
   ) {}
 
   async createTask(
@@ -62,108 +62,133 @@ export class TaskService {
   }
 
   async verifyTasksCompletion(user: User): Promise<boolean> {
-    // get all incompleted tasks
     const tasks = await this.getIncompletedTasks(user)
-    // fetch the user's wallet activity
-    // Mock wallet activity response
-    const walletActivity = {
-      data: [
-        {
-          token_address: 'mock1111111111111111111111111111111',
-          type: 'buy',
-          amount: 1000,
-        },
-        {
-          token_address: 'mock2222222222222222222222222222222',
-          type: 'buy',
-          amount: 500,
-        },
-        {
-          token_address: 'mock3333333333333333333333333333333',
-          type: 'buy',
-          amount: 250,
-        },
-      ],
+
+    if (!tasks.length) {
+      throw new Error('No tasks await verification in the ethereal plane...')
     }
 
-    // Check if we have some activity
-    if (!walletActivity.data.length) {
-      throw new Error('You wallet activity is empty, make some trades!')
+    // Verify each task
+    for (const task of tasks) {
+      const proofs = await this.soltrackerService.verifyTokenTrade(
+        task.requirements.tokenAddress,
+        user.publicKey,
+        task.type === TaskType.TOKEN_BUY ? 'buy' : 'sell',
+        {
+          amount: parseFloat(task.requirements.amount),
+          //timeframe: '24h', // Verify trades within the last 24 hours
+        },
+      )
+
+      if (!proofs) {
+        throw new Error('The spirits sense incomplete tasks. Continue your journey...')
+      }
+
+      // Find all existing proofs
+      const existingProofs = await this.taskRepository.find({
+        where: { proof: In(proofs) },
+        select: ['proof'],
+      })
+      const usedProofs = new Set(existingProofs.map((t) => t.proof))
+
+      // Find first unused proof
+      const unusedProof = proofs.find((proof) => !usedProofs.has(proof))
+
+      if (!unusedProof) {
+        throw new Error('The spirits sense incomplete tasks. Continue your journey...')
+      }
+
+      // Use the first unused proof to complete the task
+      await this.taskRepository.update(task.id, {
+        status: TaskStatus.COMPLETED,
+        completedAt: new Date(),
+        proof: unusedProof,
+      })
     }
-
-    // verify that the user has bought the token from all incompleted tasks
-    const tokenBought = tasks.every((task) =>
-      walletActivity.data.some((activity) => activity.token_address === task.requirements.tokenAddress),
-    )
-
-    if (!tokenBought) {
-      throw new Error('Ringing bells of failure fill your mind... Perhaps you should try harder?')
-    }
-
-    // mark all tasks as completed
-    await this.taskRepository.update(
-      { user: { id: user.id }, status: TaskStatus.PENDING },
-      { status: TaskStatus.COMPLETED },
-    )
 
     return true
   }
 
   async getRandomTask(user: User): Promise<Task> {
-    // Get trending tokens
-    // Mock trending tokens response
-    const response = {
-      total: 10,
-      data: [
-        {
-          symbol: 'MOCK1',
-          address: 'mock1111111111111111111111111111111',
-          market_cap: 1000000,
-        },
-        {
-          symbol: 'MOCK2',
-          address: 'mock2222222222222222222222222222222',
-          market_cap: 500000,
-        },
-        {
-          symbol: 'MOCK3',
-          address: 'mock3333333333333333333333333333333',
-          market_cap: 250000,
-        },
-      ],
-    }
+    try {
+      // Get trending tokens from the last 24 hours
+      const trendingTokens = await this.soltrackerService.getTrendingTokens('24h')
 
-    // Assign weights according to the token's market_cap
-    const tokens = response.data.map((token) => ({
-      ...token,
-      weight: token.market_cap,
-    }))
-    const totalWeight = tokens.reduce((sum, token) => sum + token.weight, 0)
-    let random = Math.random() * totalWeight
-
-    // Select token based on weight
-    let selectedToken = tokens[0]
-    for (const token of tokens) {
-      random -= token.weight
-      if (random <= 0) {
-        selectedToken = token
-        break
+      if (!trendingTokens.length) {
+        throw new Error('No trending tokens available at the moment...')
       }
+
+      // Hardcode $DADDY to the top of the list
+      const daddyToken: TrendingToken = {
+        token: {
+          name: 'DADDY TATE',
+          symbol: 'DADDY',
+          mint: '4Cnk9EPnW5ixfLZatCPJjDB1PUtcRpVVgTQukm9epump',
+          uri: '',
+          decimals: 6,
+          image: '',
+          description: '',
+          hasFileMetaData: false,
+        },
+        pools: [],
+        events: [],
+        risk: [],
+      }
+
+      trendingTokens.unshift(daddyToken)
+
+      // Assign weights based on position in trending list
+      const tokens = trendingTokens.map((token, index) => ({
+        ...token,
+        weight: 1 / (index + 1), // Higher weight for higher ranked tokens
+      }))
+
+      // Calculate total weight
+      const totalWeight = tokens.reduce((sum, token) => sum + token.weight, 0)
+      let random = Math.random() * totalWeight
+
+      // Select token based on weight
+      let selectedToken = tokens[0]
+      for (const token of tokens) {
+        random -= token.weight
+        if (random <= 0) {
+          selectedToken = token
+          break
+        }
+      }
+
+      // Only buy action for now
+      const taskType = TaskType.TOKEN_BUY
+      const action = 'Buy'
+
+      // Generate random amount between 0.01 and 0.1 SOL worth
+      const amount = (Math.random() * 0.09 + 0.01).toFixed(4)
+
+      // Create mystical task description
+      const descriptions = [
+        `The crypto spirits whisper of ${action.toLowerCase()}ing ${selectedToken.token.symbol} [CA: ${selectedToken.token.mint}]. A ${action.toLowerCase()} of ${amount} SOL worth shall bring fortune.`,
+        `Through the mists of market data, I foresee a ${action.toLowerCase()} of ${selectedToken.token.symbol} [CA: ${selectedToken.token.mint}]. The amount of ${amount} SOL worth appears in my vision.`,
+        `The blockchain oracles reveal a path through ${selectedToken.token.symbol} [CA: ${selectedToken.token.mint}]. A ${action.toLowerCase()} of ${amount} SOL worth will align the cosmic energies.`,
+        `The digital realms converge on ${selectedToken.token.symbol} [CA: ${selectedToken.token.mint}]. A ${action.toLowerCase()} of ${amount} SOL worth shall unlock hidden potential.`,
+      ]
+
+      const description = descriptions[Math.floor(Math.random() * descriptions.length)]
+
+      const task = await this.createTask(
+        taskType,
+        `${action} ${selectedToken.token.symbol} [CA: ${selectedToken.token.mint}]`,
+        description,
+        {
+          tokenAddress: selectedToken.token.mint,
+          amount,
+        },
+        user,
+      )
+
+      return task
+    } catch (error) {
+      throw new Error('The crypto spirits are restless. Try again in a moment...')
     }
-
-    // Only buy tokens for now
-    const task = await this.createTask(
-      TaskType.TOKEN_BUY,
-      `Buy ${selectedToken.symbol}`,
-      // creative fortune telling description for the task
-      `Mysterious forces whisper in your ear, urging you to buy ${selectedToken.symbol}.`,
-      {
-        tokenAddress: selectedToken.address,
-      },
-      user,
-    )
-
-    return task
   }
 
   async claimReward(user: User): Promise<TaskReward> {

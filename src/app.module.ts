@@ -12,6 +12,7 @@ import config from './config'
 import logger from './config/logger'
 import { GenAIModule } from './genai/genai.module'
 import { GmgnModule } from './gmgn/gmgn.module'
+import { SoltrackerModule } from './soltracker/soltracker.module'
 import { TaskModule } from './tasks/task.module'
 
 @Module({
@@ -53,6 +54,7 @@ import { TaskModule } from './tasks/task.module'
     TaskModule,
     GmgnModule,
     GenAIModule,
+    SoltrackerModule,
   ],
   providers: [AppService],
 })
