@@ -1,10 +1,10 @@
-import { Address, getAddressEncoder } from '@solana/web3.js'
+import { PublicKey } from '@solana/web3.js'
 
-export function sleep(ms: number) {
+export const sleep = (ms: number) => {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-export function splitArray<T>(arr: T[], size: number) {
+export const splitArray = <T>(arr: T[], size: number) => {
   const result: Array<Array<T>> = []
 
   for (let i = 0; i < arr.length; i += size) {
@@ -38,7 +38,6 @@ export const randomizeAmount = (amount: number, deviancePercentage = 5) => {
 
 export const randomElement = <T>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)]
 
-export const createPublicKeyForAddress = async (address: Address) => {
-  const addressBytes = getAddressEncoder().encode(address)
-  return crypto.subtle.importKey('raw', addressBytes, 'Ed25519', true, ['verify'])
+export const createCryptoKey = async (publicKey: PublicKey) => {
+  return crypto.subtle.importKey('raw', publicKey.toBytes(), 'Ed25519', true, ['verify'])
 }
