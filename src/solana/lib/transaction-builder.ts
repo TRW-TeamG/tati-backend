@@ -1,6 +1,6 @@
-/* eslint-disable no-await-in-loop */
 /* eslint-disable @typescript-eslint/no-this-alias */
 import {
+  AddressLookupTableAccount,
   BlockhashWithExpiryBlockHeight,
   Commitment,
   Connection,
@@ -42,20 +42,22 @@ export type HasWrappedInstructions = { connection: Connection; items: WrappedIns
  * @category Transactions
  */
 export type TransactionBuilderItemsInput =
-  | HasWrappedInstructions
-  | HasWrappedInstructions[]
   | WrappedInstruction
   | WrappedInstruction[]
+  | HasWrappedInstructions
+  | HasWrappedInstructions[]
 
 /**
  * The available options of a transaction builder.
  * @category Transactions
  */
 export type TransactionBuilderOptions = {
-  /** The blockhash that should be associated with the built transaction. */
-  blockhash?: BlockhashWithExpiryBlockHeight
   /** The signer paying for the transaction fee. */
   feePayer?: Signer
+  /** The address lookup tables to attach to the built transaction. */
+  addressLookupTables?: AddressLookupTableAccount[]
+  /** The blockhash that should be associated with the built transaction. */
+  blockhash?: BlockhashWithExpiryBlockHeight
 }
 
 /**
@@ -64,9 +66,9 @@ export type TransactionBuilderOptions = {
  * @category Transactions
  */
 export type TransactionBuilderSendAndConfirmOptions = {
-  commitment?: Commitment
-  confirm?: Omit<TransactionConfirmationStrategy, 'signature'>
   send?: SendOptions
+  confirm?: Omit<TransactionConfirmationStrategy, 'signature'>
+  commitment?: Commitment
 }
 
 /**
@@ -75,10 +77,10 @@ export type TransactionBuilderSendAndConfirmOptions = {
  * @category Transactions
  */
 export type TransactionBuilderSendAndConfirmWithResendOptions = {
-  commitment?: Commitment
   delay?: number
   resendCounter?: number
   sendOptions?: SendOptions
+  commitment?: Commitment
 }
 
 export type GetLatestBlockhashOptions = Commitment | GetLatestBlockhashConfig
@@ -95,12 +97,62 @@ export class TransactionBuilder implements HasWrappedInstructions {
     readonly options: TransactionBuilderOptions = {},
   ) {}
 
-  add(input: TransactionBuilderItemsInput): TransactionBuilder {
-    return this.append(input)
+  empty(): TransactionBuilder {
+    return new TransactionBuilder(this.connection, [], this.options)
   }
 
   append(input: TransactionBuilderItemsInput): TransactionBuilder {
     return new TransactionBuilder(this.connection, [...this.items, ...this.parseItems(input)], this.options)
+  }
+
+  add(input: TransactionBuilderItemsInput): TransactionBuilder {
+    return this.append(input)
+  }
+
+  mapInstructions(
+    fn: (wrappedInstruction: WrappedInstruction, index: number, array: WrappedInstruction[]) => WrappedInstruction,
+  ): TransactionBuilder {
+    return new TransactionBuilder(this.connection, this.items.map(fn), this.options)
+  }
+
+  setFeePayer(feePayer: Signer): TransactionBuilder {
+    return new TransactionBuilder(this.connection, this.items, { ...this.options, feePayer })
+  }
+
+  getFeePayer(): Signer | undefined {
+    return this.options.feePayer
+  }
+
+  setAddressLookupTables(addressLookupTables: AddressLookupTableAccount[]): TransactionBuilder {
+    return new TransactionBuilder(this.connection, this.items, {
+      ...this.options,
+      addressLookupTables,
+    })
+  }
+
+  getBlockhash(): BlockhashWithExpiryBlockHeight | undefined {
+    return this.options.blockhash
+  }
+
+  setBlockhash(blockhash: BlockhashWithExpiryBlockHeight): TransactionBuilder {
+    return new TransactionBuilder(this.connection, this.items, { ...this.options, blockhash })
+  }
+
+  async setLatestBlockhash(options?: GetLatestBlockhashOptions): Promise<TransactionBuilder> {
+    return this.setBlockhash(await this.connection.getLatestBlockhash(options))
+  }
+
+  getInstructions(): TransactionInstruction[] {
+    return this.items.map((item) => item.instruction)
+  }
+
+  getSigners(): Signer[] {
+    const signers: Signer[] = this.items.flatMap((item) => item.signers)
+    const feePayer = this.getFeePayer()
+    if (feePayer) {
+      signers.push(feePayer)
+    }
+    return [...new Set(signers)]
   }
 
   build(): VersionedTransaction {
@@ -115,16 +167,26 @@ export class TransactionBuilder implements HasWrappedInstructions {
 
     const feePayer = this.getFeePayer()
     if (!feePayer) {
-      throw new Error('Setting a feePayer is required to build a transaction. Please use the `setFeePayer` method.')
+      throw new Error(
+        'Setting a feePayer is required to build a transaction. ' + 'Please use the `setFeePayer` method.',
+      )
     }
 
     const messageV0 = new TransactionMessage({
-      instructions: this.getInstructions(),
       payerKey: feePayer.publicKey,
       recentBlockhash: blockhash.blockhash,
-    }).compileToV0Message()
+      instructions: this.getInstructions(),
+    }).compileToV0Message(this.options.addressLookupTables)
 
     return new VersionedTransaction(messageV0)
+  }
+
+  async buildWithLatestBlockhash(options?: GetLatestBlockhashOptions): Promise<VersionedTransaction> {
+    let builder: TransactionBuilder = this
+    if (!this.options.blockhash) {
+      builder = await this.setLatestBlockhash(options)
+    }
+    return builder.build()
   }
 
   async buildAndSign(): Promise<VersionedTransaction> {
@@ -133,78 +195,16 @@ export class TransactionBuilder implements HasWrappedInstructions {
     return transaction
   }
 
-  async buildWithLatestBlockhash(options?: GetLatestBlockhashOptions): Promise<VersionedTransaction> {
-    let builder: TransactionBuilder = this
-    if (!this.options.blockhash) {
-      builder = await this.setLatestBlockhash(options)
-    }
-
-    return builder.build()
-  }
-
-  empty(): TransactionBuilder {
-    return new TransactionBuilder(this.connection, [], this.options)
-  }
-
-  getBlockhash(): BlockhashWithExpiryBlockHeight | undefined {
-    return this.options.blockhash
-  }
-
-  getFeePayer(): Signer | undefined {
-    return this.options.feePayer
-  }
-
-  getInstructions(): TransactionInstruction[] {
-    return this.items.map((item) => item.instruction)
-  }
-
-  getSigners(): Signer[] {
-    const signers: Signer[] = this.items.flatMap((item) => item.signers)
-    const feePayer = this.getFeePayer()
-    if (feePayer) {
-      signers.push(feePayer)
-    }
-
-    return [...new Set(signers)]
-  }
-
-  mapInstructions(
-    fn: (wrappedInstruction: WrappedInstruction, index: number, array: WrappedInstruction[]) => WrappedInstruction,
-  ): TransactionBuilder {
-    return new TransactionBuilder(this.connection, this.items.map(fn), this.options)
-  }
-
-  protected parseItems(input: TransactionBuilderItemsInput): WrappedInstruction[] {
-    return (Array.isArray(input) ? input : [input]).flatMap((item) => ('items' in item ? item.items : [item]))
-  }
-
   async send(options?: SendOptions): Promise<TransactionSignature> {
     const transaction = await this.buildAndSign()
     return this.connection.sendTransaction(transaction, options)
   }
 
-  async sendAndConfirm(options?: TransactionBuilderSendAndConfirmOptions): Promise<{
-    result: RpcResponseAndContext<SignatureResult>
-    signature: TransactionSignature
-  }> {
-    const blockhash = this.getBlockhash()
-    let builder: TransactionBuilder = this
-    if (!blockhash) {
-      builder = await this.setLatestBlockhash()
-    }
-
-    const signature = await builder.send(options?.send)
-
-    const strategy: TransactionConfirmationStrategy = {
-      abortSignal: options?.confirm?.abortSignal,
-      blockhash: builder.options.blockhash!.blockhash,
-      lastValidBlockHeight: builder.options.blockhash!.lastValidBlockHeight,
-      signature,
-    }
-
-    const result = await builder._confirm(strategy, options?.commitment)
-
-    return { result, signature }
+  private async _confirm(
+    strategy: TransactionConfirmationStrategy,
+    commitment?: Commitment,
+  ): Promise<RpcResponseAndContext<SignatureResult>> {
+    return this.connection.confirmTransaction(strategy, commitment)
   }
 
   async sendAndConfirmWithResend(
@@ -215,7 +215,6 @@ export class TransactionBuilder implements HasWrappedInstructions {
     if (!blockhash) {
       builder = await this.setLatestBlockhash()
     }
-
     const delay = options?.delay || 5000
     const resendCounter = options?.resendCounter === undefined ? 10 : options?.resendCounter
     const commitment = options?.commitment || 'confirmed'
@@ -225,10 +224,7 @@ export class TransactionBuilder implements HasWrappedInstructions {
       throw new Error(`Resend limit reached. Please try again later.`)
     }
 
-    // console.log(`#${resendCounter} Sending transaction.`)
     const signature = await builder.send(options?.sendOptions)
-    // const signature =
-    //   'vWQ6HAhppm8wvNbBwZHtXBxRkLr5whYRPj1V7eHbcUjNqVd7wYPsDzWKcgrKAs3RFFss57j1jU7ohsSHbPhasK1'
 
     let success = false
     while (!success) {
@@ -239,7 +235,6 @@ export class TransactionBuilder implements HasWrappedInstructions {
       // Break loop if transaction has succeeded
       if (status && status.confirmationStatus === commitment) {
         success = true
-        // console.log(`Attempt #${resendCounter}. Transaction confirmed.`)
         return signature
       }
 
@@ -247,8 +242,6 @@ export class TransactionBuilder implements HasWrappedInstructions {
 
       // Resign and resend if blockhash has expired
       if (hashExpired) {
-        console.log(`Attempt #${resendCounter}. Blockhash has expired. Attempts left: ${resendCounter - 1}`)
-
         // update blockhash for the builder
         let builder: TransactionBuilder = this
         builder = await this.setLatestBlockhash()
@@ -257,26 +250,6 @@ export class TransactionBuilder implements HasWrappedInstructions {
       }
     }
   }
-
-  setBlockhash(blockhash: BlockhashWithExpiryBlockHeight): TransactionBuilder {
-    return new TransactionBuilder(this.connection, this.items, { ...this.options, blockhash })
-  }
-
-  setFeePayer(feePayer: Signer): TransactionBuilder {
-    return new TransactionBuilder(this.connection, this.items, { ...this.options, feePayer })
-  }
-
-  async setLatestBlockhash(options?: GetLatestBlockhashOptions): Promise<TransactionBuilder> {
-    return this.setBlockhash(await this.connection.getLatestBlockhash(options))
-  }
-
-  private async _confirm(
-    strategy: TransactionConfirmationStrategy,
-    commitment?: Commitment,
-  ): Promise<RpcResponseAndContext<SignatureResult>> {
-    return this.connection.confirmTransaction(strategy, commitment)
-  }
-
   private async _isBlockhashExpired(counter: number, commitment?: Commitment): Promise<boolean> {
     const blockhash = this.getBlockhash()
     if (!blockhash) {
@@ -285,24 +258,43 @@ export class TransactionBuilder implements HasWrappedInstructions {
           'Please use the `setBlockhash` or `setLatestBlockhash` methods.',
       )
     }
-
     const currentBlockHeight = await this.connection.getBlockHeight(commitment)
-    const { lastValidBlockHeight } = blockhash
-    // console.log(
-    //   `Attempt #${counter}.
-    //     - Current slot    :${currentBlockHeight}.
-    //     - Last valid slot :${lastValidBlockHeight}.
-    //     - Until resend    :${lastValidBlockHeight - currentBlockHeight - SLOTS_TO_EXPIRE}`,
-    // )
-    // console.log(' cur:', currentBlockHeight)
-    // console.log('last:', lastValidBlockHeight)
-    // console.log('--------------')
-    // // If Difference is positive, blockhash has expired.
-    // console.log('diff:', currentBlockHeight - (lastValidBlockHeight - 250))
-    // console.log('')
+    const lastValidBlockHeight = blockhash.lastValidBlockHeight
+
     return currentBlockHeight + SLOTS_TO_EXPIRE > lastValidBlockHeight
+  }
+
+  async sendAndConfirm(options?: TransactionBuilderSendAndConfirmOptions): Promise<{
+    signature: TransactionSignature
+    result: RpcResponseAndContext<SignatureResult>
+  }> {
+    const blockhash = this.getBlockhash()
+    let builder: TransactionBuilder = this
+    if (!blockhash) {
+      builder = await this.setLatestBlockhash()
+    }
+    const signature = await builder.send(options?.send)
+
+    const strategy: TransactionConfirmationStrategy = {
+      signature,
+      blockhash: builder.options.blockhash!.blockhash,
+      lastValidBlockHeight: builder.options.blockhash!.lastValidBlockHeight,
+      abortSignal: options?.confirm?.abortSignal,
+    }
+
+    const result = await builder._confirm(strategy, options?.commitment)
+
+    return { signature, result }
+  }
+
+  protected parseItems(input: TransactionBuilderItemsInput): WrappedInstruction[] {
+    return (Array.isArray(input) ? input : [input]).flatMap((item) => ('items' in item ? item.items : [item]))
   }
 }
 
+/**
+ * Creates a new transaction builder.
+ * @category Transactions
+ */
 export const transactionBuilder = (connection: Connection, options: TransactionBuilderOptions = {}) =>
   new TransactionBuilder(connection, [], options)
