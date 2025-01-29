@@ -1,3 +1,6 @@
+import bs58 from 'bs58'
+import { createHash } from 'crypto'
+
 import { PublicKey } from '@solana/web3.js'
 
 export const sleep = (ms: number) => {
@@ -41,3 +44,6 @@ export const randomElement = <T>(arr: T[]) => arr[Math.floor(Math.random() * arr
 export const createCryptoKey = async (publicKey: PublicKey) => {
   return crypto.subtle.importKey('raw', publicKey.toBytes(), 'Ed25519', true, ['verify'])
 }
+
+export const generateFilename = (filename: string, seed = 'tati', size = 20) =>
+  bs58.encode(createHash('sha256').update(`${seed}${filename}`).digest()).slice(0, size)

@@ -216,10 +216,9 @@ export class ChatService {
       // Check if the action is to claim a reward
       if (this.commands.claimReward.some((cmd) => dto.message.toLowerCase().includes(cmd))) {
         try {
-          const reward = await this.taskService.claimReward(user)
-          // if success, return the response with sample actions
+          // do nothing for now, maybe we can add some logic here later
           return {
-            message: `✨ The crypto spirits bestow upon you their blessing! You have received ${reward.amount} ${reward.symbol}. May it serve you well in your journey.`,
+            message: `✨ The crypto spirits bestow upon you their blessing! Check shiny button above. ⬆️⬆️⬆️`,
             actions: this.sampleActions,
           }
         } catch (error) {

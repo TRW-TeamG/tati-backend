@@ -9,14 +9,6 @@ import { SoltrackerService, TrendingToken } from '@/soltracker/soltracker.servic
 
 import { Task, TaskStatus, TaskType } from './db/task.entity'
 
-interface TaskReward {
-  amount: number
-  symbol: string
-  tokenAddress: string
-  success: boolean
-  transactionSignature?: string
-}
-
 @Injectable()
 export class TaskService {
   constructor(
@@ -200,36 +192,5 @@ export class TaskService {
     } catch (error) {
       throw new Error('The crypto spirits are restless. Try again in a moment...')
     }
-  }
-
-  async claimReward(user: User): Promise<TaskReward> {
-    const completedTasks = await this.taskRepository.find({
-      where: {
-        user: { id: user.id },
-        status: TaskStatus.COMPLETED,
-        rewardClaimed: false,
-      },
-      order: { createdAt: 'DESC' },
-    })
-
-    if (!completedTasks.length) {
-      throw new Error('You have not accomplished worthy quests to claim rewards for.')
-    }
-
-    // Here you would implement your reward logic
-    // For example, sending tokens to the user's wallet
-    // This is a placeholder implementation
-    const reward: TaskReward = {
-      amount: 0.1,
-      symbol: 'SOL',
-      tokenAddress: 'So11111111111111111111111111111111111111112',
-      success: true,
-      // transactionSignature would come from your actual token transfer
-    }
-
-    // Mark tasks as rewarded
-    await this.taskRepository.update({ id: In(completedTasks.map((task) => task.id)) }, { rewardClaimed: true })
-
-    return reward
   }
 }

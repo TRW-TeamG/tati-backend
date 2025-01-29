@@ -7,11 +7,14 @@ import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 
 import { User } from '@/auth/db'
+import { generateFilename } from '@/lib/helpers'
 import { convertUmiToWeb3JsInstruction } from '@/solana/lib/utils'
 import { SolanaService } from '@/solana/solana.service'
+import { SupabaseService } from '@/supabase/supabase.service'
 import { TaskService } from '@/tasks/task.service'
 
 import { Asset } from './db/asset.entity'
+import { Image } from './db/image.entity'
 import { AssetMetadata } from './types/metadata'
 
 @Injectable()
@@ -19,9 +22,12 @@ export class AssetService {
   constructor(
     @InjectRepository(Asset)
     private readonly assetRepository: Repository<Asset>,
+    @InjectRepository(Image)
+    private readonly imageRepository: Repository<Image>,
     private readonly taskService: TaskService,
     private readonly solanaService: SolanaService,
     private readonly config: ConfigService,
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   async createAsset(mint: string, user: User): Promise<Asset> {
@@ -61,12 +67,27 @@ export class AssetService {
     const id = count + 1
     const name = `Tati #${id.toString().padStart(4, '0')}`
 
+    // Get random image
+    const randomImage = await this.imageRepository.createQueryBuilder().orderBy('RANDOM()').limit(1).getOne()
+
+    // Get filename and extension
+    const [filename, extension] = randomImage.filename.split('.')
+
+    // Move image to public bucket
+    const publicUrl = await this.supabaseService.moveFileToPublic(
+      randomImage.s3Url,
+      `${generateFilename(filename)}.${extension}`,
+    )
+
+    // Delete image from database
+    await this.imageRepository.delete(randomImage.id)
+
     // Create asset record
     const newAsset = await this.assetRepository.save({
       name,
       collection: collection.publicKey.toString(),
       mint: asset.publicKey.toString(),
-      image: 'https://placeholder.com/400x400', // Placeholder until implemented
+      image: publicUrl,
     })
 
     try {

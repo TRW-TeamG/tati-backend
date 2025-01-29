@@ -38,6 +38,7 @@
     "@nestjs/platform-fastify": "^10.3.3",
     "@nestjs/typeorm": "^10.0.2",
     "@solana/web3.js": "^1.98.0",
+    "@supabase/supabase-js": "^2.48.1",
     "axios": "^1.7.9",
     "bs58": "^6.0.0",
     "cache-manager": "^6.4.0",

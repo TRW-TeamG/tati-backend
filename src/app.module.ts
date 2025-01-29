@@ -14,6 +14,7 @@ import logger from './config/logger'
 import { GenAIModule } from './genai/genai.module'
 import { GmgnModule } from './gmgn/gmgn.module'
 import { SoltrackerModule } from './soltracker/soltracker.module'
+import { SupabaseModule } from './supabase/supabase.module'
 import { TaskModule } from './tasks/task.module'
 
 @Module({
@@ -57,6 +58,7 @@ import { TaskModule } from './tasks/task.module'
     GenAIModule,
     SoltrackerModule,
     AssetModule,
+    SupabaseModule,
   ],
   providers: [AppService],
 })

@@ -41,4 +41,12 @@ export default () => ({
     mint: process.env.COLLECTION_MINT || 'So11111111111111111111111111111111111111112',
     externalUrl: process.env.COLLECTION_EXTERNAL_URL || 'https://thetati.fun',
   },
+  supabase: {
+    url: process.env.SUPABASE_URL,
+    anonKey: process.env.SUPABASE_ANON_KEY,
+    storage: {
+      publicBucket: process.env.SUPABASE_PUBLIC_BUCKET || 'tati',
+      privateBucket: process.env.SUPABASE_PRIVATE_BUCKET || 'tati-collection',
+    },
+  },
 })
