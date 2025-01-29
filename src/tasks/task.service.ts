@@ -50,6 +50,17 @@ export class TaskService {
     })
   }
 
+  async getUnrewardedTasks(user: User): Promise<Task[]> {
+    return this.taskRepository.find({
+      where: { user: { id: user.id }, status: TaskStatus.COMPLETED, rewardClaimed: false },
+      order: { createdAt: 'DESC' },
+    })
+  }
+
+  async markTasksAsRewarded(tasks: Task[]): Promise<void> {
+    await this.taskRepository.update({ id: In(tasks.map((t) => t.id)) }, { rewardClaimed: true })
+  }
+
   async getTask(id: number): Promise<Task> {
     const task = await this.taskRepository.findOne({
       where: { id },

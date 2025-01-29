@@ -1,4 +1,4 @@
-import { AddressLookupTableAccount, Keypair, PublicKey } from '@solana/web3.js'
+import { AddressLookupTableAccount, Keypair, PublicKey, TransactionInstruction } from '@solana/web3.js'
 
 import { Amount } from '@/lib/Amount'
 
@@ -41,3 +41,8 @@ export type SendAndConfirmOnceArgs = {
 
 export type SendAndConfirmInput = SendAndConfirmArgs & ComputeLimitArgs & PriorityFeeArgs & LootArgs
 export type SendAndConfirmOnceInput = SendAndConfirmOnceArgs & ComputeLimitArgs & PriorityFeeArgs & LootArgs
+
+export type SendAssetUpdateInput = {
+  instructions: TransactionInstruction[]
+} & ComputeLimitArgs &
+  PriorityFeeArgs

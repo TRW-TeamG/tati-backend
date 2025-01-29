@@ -17,6 +17,12 @@ export class TaskController {
     return this.taskService.getTask(id)
   }
 
+  @Get('unrewarded')
+  async getUnrewardedTasks(@CurrentUser() user: User): Promise<number> {
+    const tasks = await this.taskService.getUnrewardedTasks(user)
+    return tasks.length
+  }
+
   @Post('verify')
   async verifyTasks(@CurrentUser() user: User): Promise<{ success: boolean; message: string }> {
     try {

@@ -1,3 +1,8 @@
+import { mplCore } from '@metaplex-foundation/mpl-core'
+import { Umi, signerIdentity } from '@metaplex-foundation/umi'
+import { createSignerFromKeypair } from '@metaplex-foundation/umi'
+import { createUmi as baseCreateUmi } from '@metaplex-foundation/umi-bundle-defaults'
+import { fromWeb3JsKeypair } from '@metaplex-foundation/umi-web3js-adapters'
 import bs58 from 'bs58'
 
 import { Injectable, Logger } from '@nestjs/common'
@@ -13,7 +18,7 @@ import {
 } from '@solana/web3.js'
 
 import { WrappedInstruction, transactionBuilder } from './lib/transaction-builder'
-import { SendAndConfirmOnceInput } from './types'
+import { SendAndConfirmOnceInput, SendAssetUpdateInput } from './types'
 import { SendAndConfirmInput } from './types'
 
 @Injectable()
@@ -22,12 +27,24 @@ export class SolanaService {
 
   private readonly _rpc: Connection
   private readonly _serverKeypair: Keypair
+  private _umi: Umi | null = null
 
   constructor(private readonly config: ConfigService) {
     this._rpc = new Connection(this.config.get<string>('solana.endpoint'), {
       commitment: this.config.get<Commitment>('solana.commitment'),
     })
     this._serverKeypair = Keypair.fromSecretKey(bs58.decode(this.config.get<string>('solana.serverKey')))
+  }
+
+  async getUmi() {
+    if (!this._umi) {
+      const umi = await baseCreateUmi(this.rpc)
+      const signer = createSignerFromKeypair(umi, fromWeb3JsKeypair(this._serverKeypair))
+      umi.use(signerIdentity(signer))
+      umi.use(mplCore())
+      this._umi = umi
+    }
+    return this._umi
   }
 
   get rpc() {
@@ -48,6 +65,20 @@ export class SolanaService {
 
   getDefaultComputePrice(): number {
     return this.config.get<number>('solana.compute.price')
+  }
+
+  async sendAssetUpdate(input: SendAssetUpdateInput) {
+    const instructions = input.instructions.map((ix) => ({
+      instruction: ix,
+      signers: [this.signer],
+    }))
+
+    return this.sendAndConfirm({
+      instructions,
+      builderOptions: { feePayer: this.signer },
+      fee: input.fee,
+      limit: input.limit,
+    })
   }
 
   async getTransaction(txHash: string) {

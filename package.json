@@ -24,6 +24,10 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
+    "@metaplex-foundation/mpl-core": "^1.2.0",
+    "@metaplex-foundation/umi": "^1.0.0",
+    "@metaplex-foundation/umi-bundle-defaults": "^1.0.0",
+    "@metaplex-foundation/umi-web3js-adapters": "^1.0.0",
     "@nestjs/cache-manager": "^3.0.0",
     "@nestjs/common": "^10.3.3",
     "@nestjs/config": "^3.2.0",

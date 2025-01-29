@@ -37,4 +37,8 @@ export default () => ({
   soltracker: {
     apiKey: process.env.SOLTRACKER_API_KEY,
   },
+  collection: {
+    mint: process.env.COLLECTION_MINT || 'So11111111111111111111111111111111111111112',
+    externalUrl: process.env.COLLECTION_EXTERNAL_URL || 'https://thetati.fun',
+  },
 })
