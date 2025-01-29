@@ -3,7 +3,6 @@ import { Umi, signerIdentity } from '@metaplex-foundation/umi'
 import { createSignerFromKeypair } from '@metaplex-foundation/umi'
 import { createUmi as baseCreateUmi } from '@metaplex-foundation/umi-bundle-defaults'
 import { fromWeb3JsKeypair } from '@metaplex-foundation/umi-web3js-adapters'
-import bs58 from 'bs58'
 
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -33,7 +32,12 @@ export class SolanaService {
     this._rpc = new Connection(this.config.get<string>('solana.endpoint'), {
       commitment: this.config.get<Commitment>('solana.commitment'),
     })
-    this._serverKeypair = Keypair.fromSecretKey(bs58.decode(this.config.get<string>('solana.serverKey')))
+    // we still initialize even if we don't have the server key
+    const serverKey = this.config.get<string>('solana.serverKey')
+    if (serverKey) {
+      const secretKey: number[] = JSON.parse(serverKey)
+      this._serverKeypair = Keypair.fromSecretKey(Uint8Array.from(secretKey))
+    }
   }
 
   async getUmi() {
