@@ -37,4 +37,17 @@ export default () => ({
   soltracker: {
     apiKey: process.env.SOLTRACKER_API_KEY,
   },
+  collection: {
+    mint: process.env.COLLECTION_MINT,
+    metadataUrl: process.env.COLLECTION_METADATA_URL || 'http://localhost:8000/assets',
+    externalUrl: process.env.COLLECTION_EXTERNAL_URL || 'https://thetati.fun',
+  },
+  supabase: {
+    url: process.env.SUPABASE_URL,
+    anonKey: process.env.SUPABASE_ANON_KEY,
+    storage: {
+      publicBucket: process.env.SUPABASE_PUBLIC_BUCKET || 'tati',
+      privateBucket: process.env.SUPABASE_PRIVATE_BUCKET || 'tati-collection',
+    },
+  },
 })

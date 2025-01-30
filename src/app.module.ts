@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
+import { AssetModule } from '@/asset/asset.module'
 import { AuthModule } from '@/auth/auth.module'
 import { ChatModule } from '@/chat/chat.module'
 
@@ -13,6 +14,7 @@ import logger from './config/logger'
 import { GenAIModule } from './genai/genai.module'
 import { GmgnModule } from './gmgn/gmgn.module'
 import { SoltrackerModule } from './soltracker/soltracker.module'
+import { SupabaseModule } from './supabase/supabase.module'
 import { TaskModule } from './tasks/task.module'
 
 @Module({
@@ -55,6 +57,8 @@ import { TaskModule } from './tasks/task.module'
     GmgnModule,
     GenAIModule,
     SoltrackerModule,
+    AssetModule,
+    SupabaseModule,
   ],
   providers: [AppService],
 })

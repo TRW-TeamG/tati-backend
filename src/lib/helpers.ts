@@ -1,10 +1,13 @@
-import { Address, getAddressEncoder } from '@solana/web3.js'
+import bs58 from 'bs58'
+import { createHash } from 'crypto'
 
-export function sleep(ms: number) {
+import { PublicKey } from '@solana/web3.js'
+
+export const sleep = (ms: number) => {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-export function splitArray<T>(arr: T[], size: number) {
+export const splitArray = <T>(arr: T[], size: number) => {
   const result: Array<Array<T>> = []
 
   for (let i = 0; i < arr.length; i += size) {
@@ -38,7 +41,9 @@ export const randomizeAmount = (amount: number, deviancePercentage = 5) => {
 
 export const randomElement = <T>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)]
 
-export const createPublicKeyForAddress = async (address: Address) => {
-  const addressBytes = getAddressEncoder().encode(address)
-  return crypto.subtle.importKey('raw', addressBytes, 'Ed25519', true, ['verify'])
+export const createCryptoKey = async (publicKey: PublicKey) => {
+  return crypto.subtle.importKey('raw', publicKey.toBytes(), 'Ed25519', true, ['verify'])
 }
+
+export const generateFilename = (filename: string, seed = 'tati', size = 20) =>
+  bs58.encode(createHash('sha256').update(`${seed}${filename}`).digest()).slice(0, size)

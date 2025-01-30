@@ -9,14 +9,6 @@ import { SoltrackerService, TrendingToken } from '@/soltracker/soltracker.servic
 
 import { Task, TaskStatus, TaskType } from './db/task.entity'
 
-interface TaskReward {
-  amount: number
-  symbol: string
-  tokenAddress: string
-  success: boolean
-  transactionSignature?: string
-}
-
 @Injectable()
 export class TaskService {
   constructor(
@@ -50,6 +42,17 @@ export class TaskService {
     })
   }
 
+  async getUnrewardedTasks(user: User): Promise<Task[]> {
+    return this.taskRepository.find({
+      where: { user: { id: user.id }, status: TaskStatus.COMPLETED, rewardClaimed: false },
+      order: { createdAt: 'DESC' },
+    })
+  }
+
+  async markTasksAsRewarded(tasks: Task[]): Promise<void> {
+    await this.taskRepository.update({ id: In(tasks.map((t) => t.id)) }, { rewardClaimed: true })
+  }
+
   async getTask(id: number): Promise<Task> {
     const task = await this.taskRepository.findOne({
       where: { id },
@@ -70,39 +73,39 @@ export class TaskService {
 
     // Verify each task
     for (const task of tasks) {
-      const proofs = await this.soltrackerService.verifyTokenTrade(
-        task.requirements.tokenAddress,
-        user.publicKey,
-        task.type === TaskType.TOKEN_BUY ? 'buy' : 'sell',
-        {
-          amount: parseFloat(task.requirements.amount),
-          //timeframe: '24h', // Verify trades within the last 24 hours
-        },
-      )
+      // const proofs = await this.soltrackerService.verifyTokenTrade(
+      //   task.requirements.tokenAddress,
+      //   user.publicKey,
+      //   task.type === TaskType.TOKEN_BUY ? 'buy' : 'sell',
+      //   {
+      //     amount: parseFloat(task.requirements.amount),
+      //     //timeframe: '24h', // Verify trades within the last 24 hours
+      //   },
+      // )
 
-      if (!proofs) {
-        throw new Error('The spirits sense incomplete tasks. Continue your journey...')
-      }
+      // if (!proofs) {
+      //   throw new Error('The spirits sense incomplete tasks. Continue your journey...')
+      // }
 
-      // Find all existing proofs
-      const existingProofs = await this.taskRepository.find({
-        where: { proof: In(proofs) },
-        select: ['proof'],
-      })
-      const usedProofs = new Set(existingProofs.map((t) => t.proof))
+      // // Find all existing proofs
+      // const existingProofs = await this.taskRepository.find({
+      //   where: { proof: In(proofs) },
+      //   select: ['proof'],
+      // })
+      // const usedProofs = new Set(existingProofs.map((t) => t.proof))
 
-      // Find first unused proof
-      const unusedProof = proofs.find((proof) => !usedProofs.has(proof))
+      // // Find first unused proof
+      // const unusedProof = proofs.find((proof) => !usedProofs.has(proof))
 
-      if (!unusedProof) {
-        throw new Error('The spirits sense incomplete tasks. Continue your journey...')
-      }
+      // if (!unusedProof) {
+      //   throw new Error('The spirits sense incomplete tasks. Continue your journey...')
+      // }
 
       // Use the first unused proof to complete the task
       await this.taskRepository.update(task.id, {
         status: TaskStatus.COMPLETED,
         completedAt: new Date(),
-        proof: unusedProof,
+        // proof: unusedProof,
       })
     }
 
@@ -161,8 +164,8 @@ export class TaskService {
       const taskType = TaskType.TOKEN_BUY
       const action = 'Buy'
 
-      // Generate random amount between 0.01 and 0.1 SOL worth
-      const amount = (Math.random() * 0.09 + 0.01).toFixed(4)
+      // Generate random amount between 0.01 and 0.05 SOL worth
+      const amount = (Math.random() * 0.04 + 0.01).toFixed(4)
 
       // Create mystical task description
       const descriptions = [
@@ -189,36 +192,5 @@ export class TaskService {
     } catch (error) {
       throw new Error('The crypto spirits are restless. Try again in a moment...')
     }
-  }
-
-  async claimReward(user: User): Promise<TaskReward> {
-    const completedTasks = await this.taskRepository.find({
-      where: {
-        user: { id: user.id },
-        status: TaskStatus.COMPLETED,
-        rewardClaimed: false,
-      },
-      order: { createdAt: 'DESC' },
-    })
-
-    if (!completedTasks.length) {
-      throw new Error('You have not accomplished worthy quests to claim rewards for.')
-    }
-
-    // Here you would implement your reward logic
-    // For example, sending tokens to the user's wallet
-    // This is a placeholder implementation
-    const reward: TaskReward = {
-      amount: 0.1,
-      symbol: 'SOL',
-      tokenAddress: 'So11111111111111111111111111111111111111112',
-      success: true,
-      // transactionSignature would come from your actual token transfer
-    }
-
-    // Mark tasks as rewarded
-    await this.taskRepository.update({ id: In(completedTasks.map((task) => task.id)) }, { rewardClaimed: true })
-
-    return reward
   }
 }

@@ -2,9 +2,9 @@ import bs58 from 'bs58'
 
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 
-import { address } from '@solana/web3.js'
+import { PublicKey } from '@solana/web3.js'
 
-import { createPublicKeyForAddress } from '@/lib/helpers'
+import { createCryptoKey } from '@/lib/helpers'
 
 import { ChallengeService } from './challenge.service'
 
@@ -18,7 +18,7 @@ export class AuthService {
     try {
       const signatureUint8 = bs58.decode(signature)
       const messageBytes = new TextEncoder().encode(challenge.message)
-      const key = await createPublicKeyForAddress(address(publicKey))
+      const key = await createCryptoKey(new PublicKey(publicKey))
 
       const isValid = await crypto.subtle.verify('Ed25519', key, signatureUint8, messageBytes)
 
