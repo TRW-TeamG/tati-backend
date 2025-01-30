@@ -15,6 +15,9 @@ export class Asset {
   name: string
 
   @Column()
+  num: number
+
+  @Column()
   image: string
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })

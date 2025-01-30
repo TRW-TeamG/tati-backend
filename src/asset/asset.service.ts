@@ -65,10 +65,14 @@ export class AssetService {
     }
 
     // Get next ID for naming
-    const count = await this.assetRepository.count()
-    const id = count + 1
-    const name = `Tati #${id.toString().padStart(4, '0')}`
-    const metadataUrl = `${this.config.get<string>('collection.metadataUrl')}/${id}.json`
+    const maxNum = await this.assetRepository
+      .createQueryBuilder()
+      .select('MAX(num)', 'max')
+      .getRawOne()
+      .then((result) => result?.max || 0)
+    const assetNum = maxNum + 1
+    const name = `Tati #${assetNum.toString().padStart(4, '0')}`
+    const metadataUrl = `${this.config.get<string>('collection.metadataUrl')}/${assetNum}.json`
 
     // Get random image
     const randomImage = await this.imageRepository.createQueryBuilder().orderBy('RANDOM()').limit(1).getOne()
@@ -90,6 +94,7 @@ export class AssetService {
       name,
       collection: collection.publicKey.toString(),
       mint: assetMint,
+      num: assetNum,
       image: publicUrl,
     })
 
@@ -126,8 +131,8 @@ export class AssetService {
     return newAsset
   }
 
-  async getAssetMetadata(id: number): Promise<AssetMetadata> {
-    const asset = await this.assetRepository.findOneBy({ id })
+  async getAssetMetadata(num: number): Promise<AssetMetadata> {
+    const asset = await this.assetRepository.findOneBy({ num })
     if (!asset) {
       throw new NotFoundException('Asset not found')
     }
