@@ -14,7 +14,7 @@ export class Asset {
   @Column()
   name: string
 
-  @Column()
+  @Column({ nullable: true })
   num: number
 
   @Column()
