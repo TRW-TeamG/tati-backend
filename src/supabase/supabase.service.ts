@@ -17,32 +17,38 @@ export class SupabaseService {
 
   async moveFileToPublic(privateFilePath: string, publicFileName: string): Promise<string | null> {
     try {
-      // Download from private bucket
-      const { data: privateFile, error: downloadError } = await this.supabase.storage
-        .from(this.privateBucket)
-        .download(privateFilePath)
-
-      if (downloadError || !privateFile) {
-        throw new Error(`Failed to download file: ${downloadError?.message}`)
-      }
-
-      // Upload to public bucket with new name
-      const { data: publicFile, error: uploadError } = await this.supabase.storage
+      // check if file exists in public bucket
+      const { data: exists, error: publicFileError } = await this.supabase.storage
         .from(this.publicBucket)
-        .upload(publicFileName, privateFile, {
-          contentType: privateFile.type,
-          upsert: true,
-        })
+        .exists(publicFileName)
 
-      if (uploadError || !publicFile) {
-        throw new Error(`Failed to upload file: ${uploadError?.message}`)
+      if (!exists) {
+        // Download from private bucket
+        const { data: privateFile, error: downloadError } = await this.supabase.storage
+          .from(this.privateBucket)
+          .download(privateFilePath)
+
+        if (downloadError || !privateFile) {
+          throw new Error(`Failed to download file: ${downloadError?.message}`)
+        }
+
+        // Upload to public bucket with new name
+        const { data: publicFile, error: uploadError } = await this.supabase.storage
+          .from(this.publicBucket)
+          .upload(publicFileName, privateFile, {
+            contentType: privateFile.type,
+            upsert: true,
+          })
+
+        if (uploadError || !publicFile) {
+          throw new Error(`Failed to upload file: ${uploadError?.message}`)
+        }
+
+        // Delete from private bucket
+        // await this.supabase.storage.from(this.privateBucket).remove([privateFilePath])
       }
-
       // Get public URL
       const { data: publicUrl } = this.supabase.storage.from(this.publicBucket).getPublicUrl(publicFileName)
-
-      // Delete from private bucket
-      await this.supabase.storage.from(this.privateBucket).remove([privateFilePath])
 
       return publicUrl.publicUrl
     } catch (error) {

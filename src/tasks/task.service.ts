@@ -73,39 +73,39 @@ export class TaskService {
 
     // Verify each task
     for (const task of tasks) {
-      const proofs = await this.soltrackerService.verifyTokenTrade(
-        task.requirements.tokenAddress,
-        user.publicKey,
-        task.type === TaskType.TOKEN_BUY ? 'buy' : 'sell',
-        {
-          amount: parseFloat(task.requirements.amount),
-          //timeframe: '24h', // Verify trades within the last 24 hours
-        },
-      )
+      // const proofs = await this.soltrackerService.verifyTokenTrade(
+      //   task.requirements.tokenAddress,
+      //   user.publicKey,
+      //   task.type === TaskType.TOKEN_BUY ? 'buy' : 'sell',
+      //   {
+      //     amount: parseFloat(task.requirements.amount),
+      //     //timeframe: '24h', // Verify trades within the last 24 hours
+      //   },
+      // )
 
-      if (!proofs) {
-        throw new Error('The spirits sense incomplete tasks. Continue your journey...')
-      }
+      // if (!proofs) {
+      //   throw new Error('The spirits sense incomplete tasks. Continue your journey...')
+      // }
 
-      // Find all existing proofs
-      const existingProofs = await this.taskRepository.find({
-        where: { proof: In(proofs) },
-        select: ['proof'],
-      })
-      const usedProofs = new Set(existingProofs.map((t) => t.proof))
+      // // Find all existing proofs
+      // const existingProofs = await this.taskRepository.find({
+      //   where: { proof: In(proofs) },
+      //   select: ['proof'],
+      // })
+      // const usedProofs = new Set(existingProofs.map((t) => t.proof))
 
-      // Find first unused proof
-      const unusedProof = proofs.find((proof) => !usedProofs.has(proof))
+      // // Find first unused proof
+      // const unusedProof = proofs.find((proof) => !usedProofs.has(proof))
 
-      if (!unusedProof) {
-        throw new Error('The spirits sense incomplete tasks. Continue your journey...')
-      }
+      // if (!unusedProof) {
+      //   throw new Error('The spirits sense incomplete tasks. Continue your journey...')
+      // }
 
       // Use the first unused proof to complete the task
       await this.taskRepository.update(task.id, {
         status: TaskStatus.COMPLETED,
         completedAt: new Date(),
-        proof: unusedProof,
+        // proof: unusedProof,
       })
     }
 
@@ -164,8 +164,8 @@ export class TaskService {
       const taskType = TaskType.TOKEN_BUY
       const action = 'Buy'
 
-      // Generate random amount between 0.01 and 0.1 SOL worth
-      const amount = (Math.random() * 0.09 + 0.01).toFixed(4)
+      // Generate random amount between 0.01 and 0.05 SOL worth
+      const amount = (Math.random() * 0.04 + 0.01).toFixed(4)
 
       // Create mystical task description
       const descriptions = [

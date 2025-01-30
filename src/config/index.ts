@@ -38,7 +38,8 @@ export default () => ({
     apiKey: process.env.SOLTRACKER_API_KEY,
   },
   collection: {
-    mint: process.env.COLLECTION_MINT || 'So11111111111111111111111111111111111111112',
+    mint: process.env.COLLECTION_MINT,
+    metadataUrl: process.env.COLLECTION_METADATA_URL || 'http://localhost:8000/assets',
     externalUrl: process.env.COLLECTION_EXTERNAL_URL || 'https://thetati.fun',
   },
   supabase: {

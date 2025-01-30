@@ -1,8 +1,8 @@
-import { safeFetchAssetV1, safeFetchCollectionV1, updateV2 } from '@metaplex-foundation/mpl-core'
+import { safeFetchAssetV1, safeFetchCollectionV1, updateAuthority, updateV2 } from '@metaplex-foundation/mpl-core'
 import { publicKey } from '@metaplex-foundation/umi'
 import { Repository } from 'typeorm'
 
-import { Injectable } from '@nestjs/common'
+import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 
@@ -19,6 +19,8 @@ import { AssetMetadata } from './types/metadata'
 
 @Injectable()
 export class AssetService {
+  private readonly logger = new Logger(AssetService.name)
+
   constructor(
     @InjectRepository(Asset)
     private readonly assetRepository: Repository<Asset>,
@@ -66,6 +68,7 @@ export class AssetService {
     const count = await this.assetRepository.count()
     const id = count + 1
     const name = `Tati #${id.toString().padStart(4, '0')}`
+    const metadataUrl = `${this.config.get<string>('collection.metadataUrl')}/${id}.json`
 
     // Get random image
     const randomImage = await this.imageRepository.createQueryBuilder().orderBy('RANDOM()').limit(1).getOne()
@@ -75,18 +78,18 @@ export class AssetService {
 
     // Move image to public bucket
     const publicUrl = await this.supabaseService.moveFileToPublic(
-      randomImage.s3Url,
+      randomImage.filename,
       `${generateFilename(filename)}.${extension}`,
     )
 
     // Delete image from database
-    await this.imageRepository.delete(randomImage.id)
+    // await this.imageRepository.delete(randomImage.id)
 
     // Create asset record
     const newAsset = await this.assetRepository.save({
       name,
       collection: collection.publicKey.toString(),
-      mint: asset.publicKey.toString(),
+      mint: assetMint,
       image: publicUrl,
     })
 
@@ -96,18 +99,23 @@ export class AssetService {
         asset: assetMint,
         newCollection: collectionMint,
         newName: newAsset.name,
-        newUri: newAsset.image,
+        newUri: metadataUrl,
+        newUpdateAuthority: updateAuthority('Collection', [collectionMint]),
       }).getInstructions()
 
       const web3JsInstructions = convertUmiToWeb3JsInstruction(umiInstructions)
 
       // Send transaction
-      const tx = await this.solanaService.sendAssetUpdate({
+      const signature = await this.solanaService.sendAssetUpdate({
         instructions: web3JsInstructions,
         fee: this.config.get<number>('solana.fee.low'),
       })
 
-      console.log('tx', tx)
+      this.logger.log({
+        message: `Asset ${newAsset.name} verified on chain`,
+        signature,
+        asset: newAsset.mint,
+      })
 
       // mark tasks as rewarded
       await this.taskService.markTasksAsRewarded(unrewardedTasks)
@@ -121,13 +129,14 @@ export class AssetService {
   async getAssetMetadata(id: number): Promise<AssetMetadata> {
     const asset = await this.assetRepository.findOneBy({ id })
     if (!asset) {
-      throw new Error('Asset not found')
+      throw new NotFoundException('Asset not found')
     }
 
     return {
       name: asset.name,
-      description: `A unique digital collectible from the Tati Collection. This is NFT #${id} in the launch series.`,
+      description: `Explore Tati's NFT collection to uncover her prophecies. Collect unique art pieces that offer a glimpse into the crypto future. 📈👁️‍🗨️`,
       image: asset.image,
+      external_url: this.config.get<string>('collection.externalUrl'),
       attributes: [],
       properties: {
         files: [
